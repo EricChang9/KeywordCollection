@@ -1,3 +1,5 @@
+import csv
+from queue import Queue
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -10,20 +12,55 @@ DISCOVERY_URL = SERVER + DISCOVERY_URL_SUFFIX
 service = build('trends', API_VERSION,
                   developerKey=API_KEY,
                   discoveryServiceUrl=DISCOVERY_URL)
-# try either of the requests 'req'
-SEARCH_TERM = 'flu'
-ITERATIONS = 2
-big_list = []
-for i in range(ITERATIONS):
-    req = service.getTopQueries(term=SEARCH_TERM)
-    # req = service.getTopTopics(term=SEARCH_TERM)
+#this is the node class that we will create the tree from 
+class Node(object):
+    def __init__(self, data):
+        self.data = data
+        self.children = []
+
+    def add_child(self, obj):
+        self.children.append(obj)
+    def has_children(self):
+        return len(self.children) > 0
+    
+
+def build_tree(keyword, depth=2):
+    if depth == 0:
+        return Node(keyword)
+
+    # Fetch related queries for the keyword
+    req = service.getTopQueries(term=keyword)
     res = req.execute()
+    related_queries = []
+    for item in res['item']:
+        related_queries.append(item['title'])
+        
+    print(related_queries)
+    # Create a new node for the keyword
+    node = Node(keyword)
 
-    related_terms_list = []
+    # Recursively build children nodes
+    for query in related_queries:
+        child_node = build_tree(query, depth - 1)
+        node.add_child(child_node)
 
-    for term in res['item']:
-        related_terms_list.append(term['title'])
-    big_list.append(related_terms_list)
+    return node
 
-    SEARCH_TERM = related_terms_list[0]
-print(big_list)
+def breadth_first_traversal(root):
+    keyword_list = []
+    if not root:
+        return
+    queue = Queue()
+    queue.put(root)
+    while not queue.empty():
+        node = queue.get()
+        keyword_list.append(node.data)
+        for child in node.children:
+            queue.put(child)
+            
+    with open("keywords.csv", "w") as out:
+        writer = csv.writer(out)
+        writer.writerow(keyword_list)
+
+root  = build_tree('flu')
+breadth_first_traversal(root)
