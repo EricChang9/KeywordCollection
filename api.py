@@ -2,8 +2,11 @@ import csv
 from queue import Queue
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import os
+from dotenv import load_dotenv
 
-API_KEY = 'AIzaSyDdZSF9LalJ31xxU2-F5KjUrEiWK9SrxRs'
+load_dotenv(".env")
+API_KEY = os.getenv("API_KEY")
 
 SERVER = 'https://www.googleapis.com'
 API_VERSION = 'v1beta'
