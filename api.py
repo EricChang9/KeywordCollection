@@ -4,6 +4,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
 from dotenv import load_dotenv
+import time
 
 load_dotenv(".env")
 API_KEY = os.getenv("API_KEY")
@@ -27,16 +28,20 @@ class Node(object):
         return len(self.children) > 0
     
 
-def build_tree(keyword, depth=2):
+def build_tree(keyword, depth=2,state='GA'):
     if depth == 0:
         return Node(keyword)
 
     # Fetch related queries for the keyword
-    req = service.getTopQueries(term=keyword)
+    req = service.getTopQueries(term=keyword, restrictions_geo=f'US-{state}',restrictions_category=629)
     res = req.execute()
     related_queries = []
-    for item in res['item']:
-        related_queries.append(item['title'])
+    try:      
+        for item in res['item']:
+            related_queries.append(item['title'])
+    except:
+        print(res)
+        time.sleep(5)
         
     print(related_queries)
     # Create a new node for the keyword
@@ -49,7 +54,7 @@ def build_tree(keyword, depth=2):
 
     return node
 
-def breadth_first_traversal(root):
+def breadth_first_traversal(root,filepath):
     keyword_list = []
     if not root:
         return
@@ -61,9 +66,23 @@ def breadth_first_traversal(root):
         for child in node.children:
             queue.put(child)
             
-    with open("keywords.csv", "w") as out:
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        print(f"{filepath} removed")
+            
+    with open(filepath, "w") as out:
         writer = csv.writer(out)
         writer.writerow(keyword_list)
 
-root  = build_tree('flu')
-breadth_first_traversal(root)
+state_abrevs = [
+    # https://en.wikipedia.org/wiki/List_of_states_and_territories_of_the_United_States#States.
+    "AK", "AL", "AR", "AZ", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "IA",
+    "ID", "IL", "IN", "KS", "KY", "LA", "MA", "MD", "ME", "MI", "MN", "MO",
+    "MS", "MT", "NC", "ND", "NE", "NH", "NJ", "NM", "NV", "NY", "OH", "OK",
+    "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VA", "VT", "WA", "WI",
+    "WV", "WY"
+]
+
+for state in state_abrevs:  
+    root  = build_tree('flu', state=state)
+    breadth_first_traversal(root,f'keywords_by_state/keywords_{state}.txt')
